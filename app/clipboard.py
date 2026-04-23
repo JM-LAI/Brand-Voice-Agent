@@ -13,6 +13,7 @@ from Quartz import (
 KEY_C = 8
 KEY_V = 9
 KEY_A = 0
+KEY_DELETE = 51
 
 # CGEvent flag masks
 _FLAG_CMD = 1 << 20
@@ -71,8 +72,15 @@ def copy_selection() -> str:
 
 
 def replace_selection(new_text: str):
-    """Replace currently selected text by pasting new_text, restore clipboard after."""
+    """Replace currently selected text by pasting new_text, restore clipboard after.
+    Deletes the selection first to clear any rich text formatting (links etc)
+    so the pasted text doesn't inherit hyperlink context."""
     original_clipboard = pyperclip.paste() or ""
+
+    # delete the selection to clear formatting context (links, bold, etc)
+    press_keys(KEY_DELETE)
+    time.sleep(0.05)
+
     pyperclip.copy(new_text)
     time.sleep(0.05)
     press_keys(KEY_V, cmd=True)
