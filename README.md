@@ -6,41 +6,56 @@ Built for CREs, non-native speakers, dyslexic folks, and anyone who wants consis
 
 ## Install
 
+One command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/JM-LAI/Brand-Voice-Agent/main/install.sh | bash
+```
+
+Or clone and run manually:
+
 ```bash
 git clone https://github.com/JM-LAI/Brand-Voice-Agent.git
 cd Brand-Voice-Agent
 ./install.sh
 ```
 
-The installer walks you through:
-1. Python 3.11+ and dependencies (auto-installs via Homebrew if needed)
-2. Lightning AI API key (stored in macOS Keychain — free tier works fine)
-3. macOS permissions (Accessibility + Input Monitoring)
-4. Optional auto-start at login
+The installer handles everything: Homebrew, Python, dependencies, API key, and launch. On first launch the app walks you through macOS permissions automatically.
 
-Already cloned? Just run `./install.sh` again — it's idempotent.
+Already installed? Run `./install.sh` again — it's idempotent.
 
-### Manual Install (if you prefer)
+### What You'll Need
 
-```bash
-cd Brand-Voice-Agent
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-./brandvoice.sh
-```
+- **macOS** (any recent version)
+- **Lightning AI API key** (free) — get one at https://lightning.ai/lightning-ai/model-apis?showApiKey=true
+- ~2 minutes
 
-On first launch the app will ask for your Lightning AI API key and walk you through macOS permissions.
+### macOS Permissions (step by step)
 
-### macOS Permissions
+The app needs Accessibility and Input Monitoring permissions to capture hotkeys and paste text. The onboarding flow guides you through this automatically, but here's the full walkthrough:
 
-The app needs two permissions to capture hotkeys and paste text:
+**Accessibility:**
 
-1. **System Settings → Privacy & Security → Accessibility** — add your Python binary
-2. **System Settings → Privacy & Security → Input Monitoring** — add your Python binary
+1. Open **System Settings** (Apple menu → System Settings)
+2. Click **Privacy & Security** in the left sidebar
+3. Scroll down and click **Accessibility**
+4. Click the **+** button at the bottom of the list
+5. A file picker opens — press **Cmd+Shift+G** to open "Go to Folder"
+6. Paste the Python path (the installer copies it to your clipboard) and press Enter
+7. Click **Open**
+8. Make sure the toggle next to the new entry is **ON**
 
-The onboarding flow opens these panes for you and copies the Python path to your clipboard. In the file picker, press **Cmd+Shift+G** and paste.
+**Input Monitoring:**
 
-If you run from Terminal, you may need to add Terminal to both lists too.
+9. Go back to **Privacy & Security**
+10. Click **Input Monitoring**
+11. Click the **+** button
+12. Press **Cmd+Shift+G** again, paste the same Python path, press Enter
+13. Click **Open**
+14. Make sure the toggle is **ON**
+15. **Restart Terminal** (or quit and relaunch the app) for changes to take effect
+
+> **Tip:** If you also run the app from Terminal, you may need to add Terminal.app to both lists too. The same steps apply — just select Terminal from Applications instead of pasting a path.
 
 ## How It Works
 
@@ -103,9 +118,8 @@ Rules live at `~/Library/Application Support/brand-voice-agent/rules/`. Changes 
 ## Troubleshooting
 
 ### Hotkey not working
-- System Settings → Privacy & Security → **Accessibility**: add your Python binary
-- System Settings → Privacy & Security → **Input Monitoring**: add your Python binary
-- If running from Terminal or Cursor, add those apps too
+- Follow the [macOS Permissions](#macos-permissions-step-by-step) steps above
+- Make sure both **Accessibility** and **Input Monitoring** toggles are ON
 - Restart Terminal after changing permissions
 - Try a different hotkey: Menu bar → Settings → Set Rewrite Hotkey
 

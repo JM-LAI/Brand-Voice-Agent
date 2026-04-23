@@ -54,9 +54,9 @@ def copy_selection() -> str:
     time.sleep(0.1)
     press_keys(KEY_C, cmd=True)
 
-    # wait for the clipboard to change from the sentinel
+    # wait for the clipboard to change from the sentinel (up to 2s for large docs)
     text = sentinel
-    for _ in range(20):
+    for _ in range(40):
         time.sleep(0.05)
         text = pyperclip.paste() or ""
         if text != sentinel:

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # brandvoice — launch the Brand Voice menu bar app
 # Usage:
-#   ./brandvoice.sh                  (launch GUI)
-#   ./brandvoice.sh --text "msg"     (CLI mode)
+#   ./brandvoice.sh                  (launch GUI, detaches from terminal)
+#   ./brandvoice.sh --text "msg"     (CLI mode, runs in foreground)
 #   ./brandvoice.sh --help           (show options)
 
 set -euo pipefail
@@ -16,4 +16,12 @@ if [ ! -f "$VENV_PYTHON" ]; then
     exit 1
 fi
 
-exec "$VENV_PYTHON" -m app.main "$@"
+# CLI mode runs in foreground so you can see output
+if [[ "${1:-}" == "--text" || "${1:-}" == "--help" || "${1:-}" == "--version" ]]; then
+    exec "$VENV_PYTHON" -m app.main "$@"
+fi
+
+# GUI mode: detach from terminal so closing the terminal doesn't kill the app
+nohup "$VENV_PYTHON" -m app.main "$@" &>/dev/null &
+disown
+echo "Brand Voice running in background (PID $!). Check your menu bar."

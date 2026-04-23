@@ -41,38 +41,47 @@ def call_agent(message: str) -> str:
     return content.strip()
 
 
-def call_model(message: str, model: str, system_prompt: str) -> str:
-    """Direct rewrite via Lightning AI chat completions API."""
+def call_model(message: str, model: str, system_prompt: str, retries: int = 2) -> str:
+    """Direct rewrite via Lightning AI chat completions API with retry on timeout."""
     api_key = get_api_key()
     if not api_key:
         raise ValueError("API key not set — add it in Settings")
 
-    resp = requests.post(
-        CHAT_API_URL,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": model,
-            "temperature": 0.3,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": message},
-            ],
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    last_err = None
+    for attempt in range(1 + retries):
+        try:
+            resp = requests.post(
+                CHAT_API_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "temperature": 0.3,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": message},
+                    ],
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
-    try:
-        content = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError):
-        raise ValueError(f"Unexpected API response: {data}")
+            try:
+                content = data["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError):
+                raise ValueError(f"Unexpected API response: {data}")
 
-    # strip leading newlines (nemotron quirk) and whitespace
-    return content.strip().lstrip("\n")
+            return content.strip().lstrip("\n")
+
+        except requests.exceptions.Timeout as e:
+            last_err = e
+            log(f"API timeout (attempt {attempt + 1}/{1 + retries}), retrying...")
+            continue
+
+    raise last_err
 
 
 def rewrite(message: str, mode: str, model: str) -> str:

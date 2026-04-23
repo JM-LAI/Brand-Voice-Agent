@@ -239,11 +239,24 @@ class BrandVoiceApp(rumps.App):
             mode = self.state.get("mode", "Brand Voice")
             model = self.state.get("model", "")
 
-            log(f"Rewriting {len(text.split())} words in {mode} mode")
-            result = rewrite(text, mode, model)
+            word_count = len(text.split())
+            log(f"Rewriting {word_count} words in {mode} mode")
 
-            if not result.strip():
-                _run_on_main_thread(notify_error, "Empty response from AI")
+            max_attempts = 3
+            result = None
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    result = rewrite(text, mode, model)
+                    if result and result.strip():
+                        break
+                    log(f"Empty response (attempt {attempt}/{max_attempts})")
+                except Exception as retry_err:
+                    log(f"Rewrite attempt {attempt}/{max_attempts} failed: {retry_err}")
+                    if attempt == max_attempts:
+                        raise
+
+            if not result or not result.strip():
+                _run_on_main_thread(notify_error, "Empty response from AI after retries")
                 self._stop_spinner()
                 return
 

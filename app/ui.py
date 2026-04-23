@@ -123,35 +123,181 @@ def _pretty(expr: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Preview Window
+# Preview Window with Inline Diff
 # ---------------------------------------------------------------------------
+
+import objc
+from AppKit import NSObject as _NSObject, NSApplication as _NSApp
+
+
+class _PreviewHandler(_NSObject):
+    """Button handler for the preview panel. Defined once at module level to avoid ObjC class redefinition."""
+
+    def doAccept_(self, sender):
+        self._result_holder[0] = self._edit_tv.string()
+        _NSApp.sharedApplication().stopModal()
+        self._panel.close()
+
+    def doCancel_(self, sender):
+        self._result_holder[0] = None
+        _NSApp.sharedApplication().stopModal()
+        self._panel.close()
+
+def _build_diff_attributed_string(original: str, rewritten: str):
+    """Build an NSAttributedString with inline diff: red strikethrough for removed, green for added."""
+    import difflib
+    from AppKit import (
+        NSMutableAttributedString, NSAttributedString, NSFont, NSColor,
+        NSForegroundColorAttributeName, NSStrikethroughStyleAttributeName,
+        NSUnderlineStyleSingle, NSFontAttributeName,
+        NSBackgroundColorAttributeName,
+    )
+
+    font = NSFont.fontWithName_size_("Menlo", 13.0) or NSFont.systemFontOfSize_(13.0)
+    base_attrs = {NSFontAttributeName: font}
+
+    removed_attrs = {
+        NSFontAttributeName: font,
+        NSForegroundColorAttributeName: NSColor.colorWithRed_green_blue_alpha_(0.8, 0.2, 0.2, 1.0),
+        NSStrikethroughStyleAttributeName: NSUnderlineStyleSingle,
+        NSBackgroundColorAttributeName: NSColor.colorWithRed_green_blue_alpha_(1.0, 0.9, 0.9, 1.0),
+    }
+    added_attrs = {
+        NSFontAttributeName: font,
+        NSForegroundColorAttributeName: NSColor.colorWithRed_green_blue_alpha_(0.1, 0.5, 0.1, 1.0),
+        NSBackgroundColorAttributeName: NSColor.colorWithRed_green_blue_alpha_(0.9, 1.0, 0.9, 1.0),
+    }
+
+    result = NSMutableAttributedString.alloc().init()
+    sm = difflib.SequenceMatcher(None, original.split(), rewritten.split())
+
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            text = " ".join(original.split()[i1:i2]) + " "
+            chunk = NSAttributedString.alloc().initWithString_attributes_(text, base_attrs)
+            result.appendAttributedString_(chunk)
+        elif tag == "replace":
+            old_text = " ".join(original.split()[i1:i2]) + " "
+            new_text = " ".join(rewritten.split()[j1:j2]) + " "
+            old_chunk = NSAttributedString.alloc().initWithString_attributes_(old_text, removed_attrs)
+            new_chunk = NSAttributedString.alloc().initWithString_attributes_(new_text, added_attrs)
+            result.appendAttributedString_(old_chunk)
+            result.appendAttributedString_(new_chunk)
+        elif tag == "delete":
+            old_text = " ".join(original.split()[i1:i2]) + " "
+            old_chunk = NSAttributedString.alloc().initWithString_attributes_(old_text, removed_attrs)
+            result.appendAttributedString_(old_chunk)
+        elif tag == "insert":
+            new_text = " ".join(rewritten.split()[j1:j2]) + " "
+            new_chunk = NSAttributedString.alloc().initWithString_attributes_(new_text, added_attrs)
+            result.appendAttributedString_(new_chunk)
+
+    return result
+
 
 def show_preview(original: str, rewritten: str) -> str | None:
     """
-    Show a preview dialog with original and rewritten text.
+    Show a native preview panel with inline diff (red strikethrough / green highlight)
+    and an editable field for the rewritten text.
 
     Returns the (possibly edited) rewritten text if accepted, None if cancelled.
     """
+    from AppKit import (
+        NSPanel, NSTextField, NSTextView, NSScrollView, NSButton,
+        NSFont, NSApplication, NSFloatingWindowLevel,
+        NSWindowStyleMaskTitled, NSWindowStyleMaskClosable,
+        NSBackingStoreBuffered, NSBezelStyleRounded,
+        NSApplicationActivateIgnoringOtherApps,
+        NSMakeRect,
+    )
+
     orig_words = len(original.split())
     new_words = len(rewritten.split())
 
-    win = rumps.Window(
-        message=(
-            f"── Original ({orig_words} words) ──\n"
-            f"{original}\n\n"
-            f"── Rewritten ({new_words} words) ──\n"
-            "Edit below if needed:"
-        ),
-        title="Preview Rewrite",
-        default_text=rewritten,
-        ok="Accept",
-        cancel="Cancel",
-        dimensions=(500, 200),
+    panel_w, panel_h = 620, 520
+    padding = 16
+
+    panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+        NSMakeRect(200, 200, panel_w, panel_h),
+        NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
+        NSBackingStoreBuffered,
+        False,
     )
-    response = win.run()
-    if response.clicked == 0:
-        return None
-    return response.text.strip()
+    panel.setTitle_(f"Preview Rewrite — {orig_words} → {new_words} words")
+    panel.setLevel_(NSFloatingWindowLevel)
+    content = panel.contentView()
+
+    y = panel_h - 40
+
+    # diff label
+    diff_label = NSTextField.labelWithString_("Diff (red = removed, green = added):")
+    diff_label.setFrame_(NSMakeRect(padding, y, panel_w - padding * 2, 20))
+    diff_label.setFont_(NSFont.boldSystemFontOfSize_(12.0))
+    content.addSubview_(diff_label)
+    y -= 180
+
+    # diff scroll view with attributed string
+    diff_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(padding, y, panel_w - padding * 2, 170))
+    diff_scroll.setHasVerticalScroller_(True)
+    diff_scroll.setBorderType_(1)
+    diff_tv = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, panel_w - padding * 2 - 20, 170))
+    diff_tv.setEditable_(False)
+    diff_tv.setRichText_(True)
+    attr_str = _build_diff_attributed_string(original, rewritten)
+    diff_tv.textStorage().setAttributedString_(attr_str)
+    diff_scroll.setDocumentView_(diff_tv)
+    content.addSubview_(diff_scroll)
+    y -= 30
+
+    # editable label
+    edit_label = NSTextField.labelWithString_("Edit the rewrite if needed:")
+    edit_label.setFrame_(NSMakeRect(padding, y, panel_w - padding * 2, 20))
+    edit_label.setFont_(NSFont.boldSystemFontOfSize_(12.0))
+    content.addSubview_(edit_label)
+    y -= 180
+
+    # editable text view
+    edit_scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(padding, y, panel_w - padding * 2, 170))
+    edit_scroll.setHasVerticalScroller_(True)
+    edit_scroll.setBorderType_(1)
+    edit_tv = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, panel_w - padding * 2 - 20, 170))
+    edit_tv.setEditable_(True)
+    edit_tv.setFont_(NSFont.fontWithName_size_("Menlo", 13.0) or NSFont.systemFontOfSize_(13.0))
+    edit_tv.setString_(rewritten)
+    edit_scroll.setDocumentView_(edit_tv)
+    content.addSubview_(edit_scroll)
+    y -= 40
+
+    # buttons
+    _result_holder = [None]
+    handler = _PreviewHandler.alloc().init()
+    handler._result_holder = _result_holder
+    handler._edit_tv = edit_tv
+    handler._panel = panel
+
+    accept_btn = NSButton.alloc().initWithFrame_(NSMakeRect(panel_w - padding - 100, padding, 90, 32))
+    accept_btn.setTitle_("Accept")
+    accept_btn.setBezelStyle_(NSBezelStyleRounded)
+    accept_btn.setTarget_(handler)
+    accept_btn.setAction_(objc.selector(handler.doAccept_, signature=b"v@:@"))
+    accept_btn.setKeyEquivalent_("\r")
+    content.addSubview_(accept_btn)
+
+    cancel_btn = NSButton.alloc().initWithFrame_(NSMakeRect(panel_w - padding - 200, padding, 90, 32))
+    cancel_btn.setTitle_("Cancel")
+    cancel_btn.setBezelStyle_(NSBezelStyleRounded)
+    cancel_btn.setTarget_(handler)
+    cancel_btn.setAction_(objc.selector(handler.doCancel_, signature=b"v@:@"))
+    cancel_btn.setKeyEquivalent_("\x1b")
+    content.addSubview_(cancel_btn)
+
+    NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+    panel.makeKeyAndOrderFront_(None)
+    NSApplication.sharedApplication().runModalForWindow_(panel)
+
+    if _result_holder[0] is not None:
+        return _result_holder[0].strip()
+    return None
 
 
 # ---------------------------------------------------------------------------
