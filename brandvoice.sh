@@ -21,6 +21,21 @@ if [[ "${1:-}" == "--text" || "${1:-}" == "--help" || "${1:-}" == "--version" ]]
     exec "$VENV_PYTHON" -m app.main "$@"
 fi
 
+# check for existing instance
+EXISTING_PID=$(pgrep -f "python.*-m app.main" 2>/dev/null | head -1 || true)
+if [[ -n "$EXISTING_PID" && "$EXISTING_PID" != "$$" ]]; then
+    echo "Brand Voice is already running (PID ${EXISTING_PID})."
+    printf "Kill it and restart? (y/n): "
+    read -r yn
+    if [[ "$yn" =~ ^[Yy] ]]; then
+        kill "$EXISTING_PID" 2>/dev/null || true
+        sleep 0.5
+    else
+        echo "Leaving existing instance running."
+        exit 0
+    fi
+fi
+
 # GUI mode: detach from terminal so closing the terminal doesn't kill the app
 nohup "$VENV_PYTHON" -m app.main "$@" &>/dev/null &
 disown

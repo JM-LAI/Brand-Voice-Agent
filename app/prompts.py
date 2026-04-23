@@ -29,6 +29,7 @@ FACTS — preserve everything:
 - Never invent details that aren't in the original. If the original doesn't have an ETA, don't add one.
 - Never insert placeholders like [insert time] or [TBD]. If info is missing, just leave it out.
 - Preserve code blocks and terminal output exactly.
+- Preserve any emoji from the original message exactly as written.
 
 AVOID:
 - Filler openers: "I wanted to let you know", "I'm reaching out to inform you", "just wanted to give you a heads up"
@@ -60,6 +61,7 @@ Rules:
 - Do not change the tone or length — only fix errors and expand shorthand.
 - Preserve all technical terms, identifiers, node names, IPs, commands, paths, and error codes exactly as written.
 - If the input contains code blocks or terminal output, do not modify them.
+- Preserve any emoji from the original message exactly as written.
 - Do not add commentary, explanations, labels, or formatting.
 - Do not add or remove content beyond corrections.
 - If the text has no errors, return it unchanged.""",
@@ -75,6 +77,7 @@ Rules:
 - Preserve the original tone — do not make it more formal or more casual.
 - Fix any grammar or spelling errors while shortening.
 - Preserve code blocks and terminal output exactly.
+- Preserve any emoji from the original message exactly as written.
 - Do not add commentary, explanations, or labels.
 - If the message is already concise, return it with only grammar fixes.""",
 
@@ -89,6 +92,7 @@ Rules:
 - Expand informal abbreviations (e.g. "tbh" -> "to be honest") where appropriate for a formal context.
 - Keep every fact, identifier, node name, IP, command, path, ETA, and action item.
 - Preserve code blocks and terminal output exactly.
+- Preserve any emoji from the original message exactly as written.
 - Do not add commentary, explanations, or labels.
 - Do not add filler or make the message longer than necessary.""",
 
@@ -104,6 +108,7 @@ Rules:
 - Fix all grammar, spelling, and punctuation errors.
 - Keep every fact, identifier, node name, IP, command, path, ETA, and action item.
 - Preserve code blocks and terminal output exactly.
+- Preserve any emoji from the original message exactly as written.
 - Do not add commentary, explanations, or labels.
 - Do not over-casualize technical content — keep credibility.""",
 }

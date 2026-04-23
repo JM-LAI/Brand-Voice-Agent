@@ -41,6 +41,29 @@ def call_agent(message: str) -> str:
     return content.strip()
 
 
+def _friendly_error(err: Exception) -> str:
+    """Turn raw API errors into something a human can act on."""
+    msg = str(err)
+    if isinstance(err, requests.exceptions.Timeout):
+        return "API timed out — Lightning AI may be slow. Try again in a moment."
+    if isinstance(err, requests.exceptions.ConnectionError):
+        return "Can't reach Lightning AI — check your internet connection."
+    if isinstance(err, requests.exceptions.HTTPError):
+        code = getattr(err.response, 'status_code', None)
+        if code == 401:
+            return "Invalid API key — update it in Settings → API Key."
+        if code == 403:
+            return "API key doesn't have access — check your Lightning AI account."
+        if code == 429:
+            return "Rate limited — too many requests. Wait a few seconds and try again."
+        if code and code >= 500:
+            return f"Lightning AI server error ({code}) — try again in a moment."
+        return f"API error ({code}) — {msg[:100]}"
+    if "API key not set" in msg:
+        return msg
+    return f"Rewrite failed: {msg[:150]}"
+
+
 def call_model(message: str, model: str, system_prompt: str, retries: int = 2) -> str:
     """Direct rewrite via Lightning AI chat completions API with retry on timeout."""
     api_key = get_api_key()
@@ -80,8 +103,10 @@ def call_model(message: str, model: str, system_prompt: str, retries: int = 2) -
             last_err = e
             log(f"API timeout (attempt {attempt + 1}/{1 + retries}), retrying...")
             continue
+        except Exception as e:
+            raise ValueError(_friendly_error(e)) from e
 
-    raise last_err
+    raise ValueError(_friendly_error(last_err))
 
 
 def rewrite(message: str, mode: str, model: str) -> str:

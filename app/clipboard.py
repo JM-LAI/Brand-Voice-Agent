@@ -43,27 +43,33 @@ def press_keys(keycode: int, cmd=False, ctrl=False, alt=False, shift=False):
 
 
 def copy_selection() -> str:
-    """Select all + copy. Uses a sentinel to reliably detect new clipboard content."""
+    """Smart copy: grab existing selection first, fall back to select-all if nothing highlighted."""
     original_clipboard = pyperclip.paste() or ""
-
-    # put a unique sentinel on the clipboard so we can tell when the copy lands
     sentinel = f"__bv_{uuid.uuid4().hex[:8]}__"
-    pyperclip.copy(sentinel)
 
-    # select all, then copy
-    press_keys(KEY_A, cmd=True)
-    time.sleep(0.1)
+    # try copying the current selection (no Cmd+A)
+    pyperclip.copy(sentinel)
     press_keys(KEY_C, cmd=True)
 
-    # wait for the clipboard to change from the sentinel (up to 2s for large docs)
     text = sentinel
-    for _ in range(40):
+    for _ in range(15):
         time.sleep(0.05)
         text = pyperclip.paste() or ""
         if text != sentinel:
             break
 
-    # restore original clipboard
+    # if nothing was selected, fall back to select-all
+    if text == sentinel:
+        press_keys(KEY_A, cmd=True)
+        time.sleep(0.1)
+        press_keys(KEY_C, cmd=True)
+
+        for _ in range(40):
+            time.sleep(0.05)
+            text = pyperclip.paste() or ""
+            if text != sentinel:
+                break
+
     pyperclip.copy(original_clipboard)
 
     if text and text != sentinel:
@@ -71,15 +77,20 @@ def copy_selection() -> str:
     return ""
 
 
-def replace_selection(new_text: str):
+def _text_has_urls(text: str) -> bool:
+    """Quick check if text contains URLs that could cause hyperlink bleeding."""
+    return "http://" in text or "https://" in text or "www." in text
+
+
+def replace_selection(new_text: str, original_text: str = ""):
     """Replace currently selected text by pasting new_text, restore clipboard after.
-    Deletes the selection first to clear any rich text formatting (links etc)
-    so the pasted text doesn't inherit hyperlink context."""
+    If the original contained URLs, deletes selection first to prevent hyperlink bleeding."""
     original_clipboard = pyperclip.paste() or ""
 
-    # delete the selection to clear formatting context (links, bold, etc)
-    press_keys(KEY_DELETE)
-    time.sleep(0.05)
+    if original_text and _text_has_urls(original_text):
+        # delete selection first to clear link formatting context
+        press_keys(KEY_DELETE)
+        time.sleep(0.05)
 
     pyperclip.copy(new_text)
     time.sleep(0.05)

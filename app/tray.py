@@ -227,19 +227,69 @@ class BrandVoiceApp(rumps.App):
             return
         threading.Thread(target=self._do_rewrite, daemon=True).start()
 
+    def _looks_like_password(self, text: str) -> bool:
+        """Heuristic: password fields on macOS copy as bullet chars or short no-space strings."""
+        stripped = text.strip()
+        if not stripped:
+            return False
+        # macOS secure fields copy as bullet characters (•)
+        if all(c == '•' or c == '●' or c == '*' for c in stripped):
+            return True
+        # very short, no spaces, no newlines — likely a password or token
+        if len(stripped) < 40 and ' ' not in stripped and '\n' not in stripped:
+            # but allow short normal words/phrases
+            if not stripped.isalpha() and any(c.isdigit() or c in '!@#$%^&*' for c in stripped):
+                return True
+        return False
+
+    def _looks_suspicious(self, text: str) -> bool:
+        """Heuristic: text that probably wasn't meant to be rewritten."""
+        words = len(text.split())
+        # extremely long (>2000 words) — probably grabbed a whole doc by accident
+        if words > 2000:
+            return True
+        return False
+
     def _do_rewrite(self):
+        saved_clipboard = pyperclip.paste() or ""
         self._start_spinner()
         try:
             text = copy_selection()
             if not text.strip():
                 log("Nothing selected to rewrite")
+                _run_on_main_thread(notify_error, "Nothing selected — highlight text first")
+                self._stop_spinner()
+                return
+
+            # password field check
+            if self._looks_like_password(text):
+                log("Looks like a password field — skipping")
+                _run_on_main_thread(notify_error, "Looks like a password field — rewrite skipped")
                 self._stop_spinner()
                 return
 
             mode = self.state.get("mode", "Brand Voice")
             model = self.state.get("model", "")
-
             word_count = len(text.split())
+            self._spinner_word_count = word_count
+
+            # suspicious content check — require double-press within 3s
+            if self._looks_suspicious(text):
+                now = time.time()
+                last = getattr(self, '_confirm_timestamp', 0)
+                if now - last > 3.0:
+                    self._confirm_timestamp = now
+                    log(f"Suspicious content ({word_count} words) — waiting for confirmation")
+                    _run_on_main_thread(
+                        rumps.notification, "Brand Voice",
+                        f"Rewrite {word_count} words?",
+                        "Press the hotkey again within 3s to confirm"
+                    )
+                    self._stop_spinner()
+                    return
+                # second press within window — proceed
+                self._confirm_timestamp = 0
+
             log(f"Rewriting {word_count} words in {mode} mode")
 
             max_attempts = 3
@@ -256,11 +306,11 @@ class BrandVoiceApp(rumps.App):
                         raise
 
             if not result or not result.strip():
-                _run_on_main_thread(notify_error, "Empty response from AI after retries")
+                _run_on_main_thread(notify_error, "AI returned nothing — try again or switch models in the menu bar.")
                 self._stop_spinner()
                 return
 
-            # preview if enabled — must run on main thread since it shows a window
+            # preview if enabled
             if self.state.get("preview"):
                 self._preview_result = None
                 _run_on_main_thread(self._show_preview_main, text, result)
@@ -271,14 +321,13 @@ class BrandVoiceApp(rumps.App):
                     return
                 result = final
 
-            replace_selection(result)
-
-            # undo buffer
+            # store undo before replacing
             self._undo_buffer = {"original": text, "rewritten": result}
 
-            # history
+            replace_selection(result, original_text=text)
+
             add_history_entry(self.state, text, result)
-            self.state = read_state()  # reload after history write
+            self.state = read_state()
 
             orig_words = len(text.split())
             new_words = len(result.split())
@@ -291,12 +340,20 @@ class BrandVoiceApp(rumps.App):
 
         except Exception as e:
             log(f"Rewrite error: {e}")
-            _run_on_main_thread(notify_error, str(e))
-            self._stop_spinner()
+            msg = str(e)
+            # already friendly if it came from _friendly_error in llm.py
+            if not any(hint in msg for hint in ["API key", "Lightning AI", "timed out", "internet", "Rate limited", "Rewrite failed"]):
+                msg = f"Something went wrong — check Settings → Open Logs for details."
+            _run_on_main_thread(notify_error, msg)
             self.title = self._mode_title() + "!"
-            return
 
-        self._stop_spinner()
+        finally:
+            self._stop_spinner()
+            # always restore clipboard no matter what happened
+            try:
+                pyperclip.copy(saved_clipboard)
+            except Exception:
+                pass
 
     def _show_preview_main(self, original, rewritten):
         """Wrapper for show_preview that stores result — called on main thread."""
@@ -336,8 +393,10 @@ class BrandVoiceApp(rumps.App):
     def _on_undo(self):
         """Undo the last rewrite."""
         if not self._undo_buffer:
+            _run_on_main_thread(rumps.notification, "Brand Voice", "Nothing to undo", "No recent rewrite to undo")
             return
         replace_selection(self._undo_buffer["original"])
+        _run_on_main_thread(rumps.notification, "Brand Voice", "Undo", "Original text restored")
         log("Undo: restored original text")
         self._undo_buffer = None
 
@@ -345,14 +404,37 @@ class BrandVoiceApp(rumps.App):
     # Spinner
     # -----------------------------------------------------------------------
 
-    def _start_spinner(self):
+    def _start_spinner(self, word_count: int = 0):
         self._spinning = True
         self._spinner_idx = 0
+        self._spinner_start = time.time()
+        self._spinner_word_count = word_count
+        self._spinner_notified_15 = False
+        self._spinner_notified_45 = False
 
         def _spin():
             while self._spinning:
-                self.title = SPINNER_FRAMES[self._spinner_idx % len(SPINNER_FRAMES)]
+                elapsed = int(time.time() - self._spinner_start)
+                frame = SPINNER_FRAMES[self._spinner_idx % len(SPINNER_FRAMES)]
+                if elapsed >= 5:
+                    self.title = f"{frame} {elapsed}s"
+                else:
+                    self.title = frame
                 self._spinner_idx += 1
+
+                if elapsed >= 15 and not self._spinner_notified_15:
+                    self._spinner_notified_15 = True
+                    wc = self._spinner_word_count
+                    msg = f"Still working on it ({wc} words)..." if wc else "Still working..."
+                    _run_on_main_thread(rumps.notification, "Brand Voice", "Hang tight", msg)
+
+                if elapsed >= 45 and not self._spinner_notified_45:
+                    self._spinner_notified_45 = True
+                    _run_on_main_thread(
+                        rumps.notification, "Brand Voice", "Taking a while",
+                        "Still trying — the API may be slow"
+                    )
+
                 time.sleep(0.1)
 
         threading.Thread(target=_spin, daemon=True).start()
@@ -560,7 +642,18 @@ class BrandVoiceApp(rumps.App):
                     f"Response in {elapsed:.1f}s",
                 )
             except Exception as e:
-                _run_on_main_thread(notify_error, f"Connection test failed: {e}")
+                msg = str(e)
+                if "API key not set" in msg:
+                    msg = "No API key found — add one in Settings → API Key."
+                elif "timed out" in msg.lower() or "timeout" in msg.lower():
+                    msg = "Connection timed out — Lightning AI may be down. Try again later."
+                elif "connection" in msg.lower():
+                    msg = "Can't connect — check your internet and try again."
+                elif "401" in msg or "Unauthorized" in msg:
+                    msg = "API key is invalid — update it in Settings → API Key."
+                else:
+                    msg = f"Connection test failed — check Settings → Open Logs."
+                _run_on_main_thread(notify_error, msg)
 
         threading.Thread(target=_test, daemon=True).start()
 
