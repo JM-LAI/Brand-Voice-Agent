@@ -6,21 +6,17 @@ Built for CREs, non-native speakers, dyslexic folks, and anyone who wants consis
 
 ## Install
 
-One command:
+1. Open **Terminal** (press Cmd+Space, type "Terminal", press Enter)
+2. Paste this and press Enter:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/JM-LAI/Brand-Voice-Agent/main/install.sh | bash
 ```
 
-Or clone and run manually:
+3. The installer will open the API key page in your browser — copy your key and paste it when prompted
+4. The app launches and walks you through macOS permissions
 
-```bash
-git clone https://github.com/JM-LAI/Brand-Voice-Agent.git
-cd Brand-Voice-Agent
-./install.sh
-```
-
-The installer handles everything: Homebrew, Python, dependencies, API key, and launch. On first launch the app walks you through macOS permissions automatically.
+That's it. The installer handles Homebrew, Python, dependencies, and everything else automatically.
 
 Already installed? Run `./install.sh` again — it's idempotent.
 
@@ -170,7 +166,7 @@ security delete-generic-password -s "lightning-api-key" -a "brand-voice-agent" 2
 
 ### 5. Remove the repo
 ```bash
-rm -rf ~/Github/Brand-Voice-Agent
+rm -rf ~/Brand-Voice-Agent
 ```
 
 ### 6. Remove macOS permissions
