@@ -89,8 +89,29 @@ class BrandVoiceApp(rumps.App):
         if is_first_run():
             self._onboarding_timer = rumps.Timer(self._deferred_onboarding, 1.5)
             self._onboarding_timer.start()
+        else:
+            # check permissions on every launch and warn if missing
+            self._perms_timer = rumps.Timer(self._check_permissions, 2.0)
+            self._perms_timer.start()
 
         log("Brand Voice app started")
+
+    def _check_permissions(self, _):
+        """One-shot check for Accessibility/Input Monitoring permissions."""
+        self._perms_timer.stop()
+        try:
+            from ApplicationServices import AXIsProcessTrusted
+            if not AXIsProcessTrusted():
+                import sys, os
+                real_python = os.path.realpath(sys.executable)
+                rumps.notification(
+                    title="Brand Voice — Permissions Needed",
+                    subtitle="Hotkeys won't work without permissions",
+                    message="Go to System Settings → Privacy & Security → Accessibility and Input Monitoring. Add: " + real_python,
+                )
+                log("Accessibility permission not granted — user notified")
+        except Exception as e:
+            log(f"Permission check failed: {e}")
 
     def _deferred_onboarding(self, _):
         """Fires once on the main thread, then stops itself."""
