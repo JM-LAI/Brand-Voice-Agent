@@ -411,15 +411,35 @@ def run_onboarding() -> bool:
         "3. Press Enter, then click Open"
     )
 
-    # step 5: open Accessibility pane
+    # detect which terminal app launched us
+    terminal_app = "Terminal"
+    try:
+        parent_pid = os.getppid()
+        ps_out = subprocess.check_output(
+            ["ps", "-p", str(parent_pid), "-o", "comm="],
+            text=True
+        ).strip()
+        if "iTerm" in ps_out:
+            terminal_app = "iTerm2"
+        elif "Warp" in ps_out:
+            terminal_app = "Warp"
+        elif "Alacritty" in ps_out:
+            terminal_app = "Alacritty"
+        elif "kitty" in ps_out:
+            terminal_app = "kitty"
+    except Exception:
+        pass
+    log(f"Detected terminal: {terminal_app}")
+
+    # step 5: Accessibility — Python binary
     pyperclip.copy(real_python)
     subprocess.Popen([
         "open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     ])
     rumps.alert(
-        title="Step 1 of 2 — Accessibility",
+        title="Step 1 of 4 — Accessibility (Python)",
         message=(
-            "I've opened the Accessibility settings pane and copied "
+            "I've opened the Accessibility settings and copied "
             "the Python path to your clipboard.\n\n"
             f"Path: {real_python}\n\n"
             "Click the + button, then:\n\n"
@@ -428,30 +448,58 @@ def run_onboarding() -> bool:
         ),
     )
 
-    # step 6: open Input Monitoring pane
+    # step 6: Accessibility — Terminal app
+    rumps.alert(
+        title=f"Step 2 of 4 — Accessibility ({terminal_app})",
+        message=(
+            f"Now add {terminal_app} to the same Accessibility list.\n\n"
+            "Click the + button again, then:\n"
+            f"Navigate to Applications → {terminal_app}\n"
+            "(For Terminal: Applications → Utilities → Terminal)\n\n"
+            "Select it and click Open.\n"
+            "Make sure the toggle is ON, then click OK here."
+        ),
+    )
+
+    # step 7: Input Monitoring — Python binary
     pyperclip.copy(real_python)
     subprocess.Popen([
         "open", "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
     ])
     rumps.alert(
-        title="Step 2 of 2 — Input Monitoring",
+        title="Step 3 of 4 — Input Monitoring (Python)",
         message=(
-            "Now I've opened Input Monitoring and copied the path again.\n\n"
+            "Now I've opened Input Monitoring and copied the Python path again.\n\n"
             f"Path: {real_python}\n\n"
-            "Same thing — click +, then:\n\n"
+            "Same as before — click +, then:\n\n"
             f"{go_to_tip}\n\n"
             "Flip the switch ON, then click OK here."
         ),
     )
 
-    # step 6: done
+    # step 8: Input Monitoring — Terminal app
     rumps.alert(
-        title="You're Set Up",
+        title=f"Step 4 of 4 — Input Monitoring ({terminal_app})",
+        message=(
+            f"Last one! Add {terminal_app} to Input Monitoring too.\n\n"
+            "Click +, navigate to:\n"
+            f"Applications → {terminal_app}\n"
+            "(For Terminal: Applications → Utilities → Terminal)\n\n"
+            "Select it, click Open, toggle ON.\n\n"
+            f"Then QUIT {terminal_app} completely (Cmd+Q) and reopen it "
+            "for permissions to take effect."
+        ),
+    )
+
+    # done
+    rumps.alert(
+        title="You're Set Up!",
         message=(
             "Select text anywhere and press Cmd+Ctrl+G to rewrite.\n\n"
             "Cmd+Ctrl+M cycles between modes.\n"
             "Cmd+Ctrl+Z undoes the last rewrite.\n\n"
-            "Edit rules and change settings from the BV menu bar icon."
+            "Edit rules and change settings from the menu bar icon.\n\n"
+            f"Remember: quit and reopen {terminal_app} before testing!"
         ),
     )
 
