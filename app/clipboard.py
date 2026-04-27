@@ -49,10 +49,11 @@ def copy_selection() -> str:
 
     # try copying the current selection (no Cmd+A)
     pyperclip.copy(sentinel)
+    time.sleep(0.05)
     press_keys(KEY_C, cmd=True)
 
     text = sentinel
-    for _ in range(15):
+    for _ in range(25):
         time.sleep(0.05)
         text = pyperclip.paste() or ""
         if text != sentinel:
@@ -61,7 +62,7 @@ def copy_selection() -> str:
     # if nothing was selected, fall back to select-all
     if text == sentinel:
         press_keys(KEY_A, cmd=True)
-        time.sleep(0.1)
+        time.sleep(0.15)
         press_keys(KEY_C, cmd=True)
 
         for _ in range(40):
