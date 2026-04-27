@@ -10,7 +10,7 @@ Built for CREs, non-native speakers, dyslexic folks, and anyone who wants consis
 2. Paste this and press Enter:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/JM-LAI/Brand-Voice-Agent/main/install.sh | bash
+bash <(curl -sSL https://raw.githubusercontent.com/JM-LAI/Brand-Voice-Agent/main/install.sh)
 ```
 
 3. The installer will open the API key page in your browser — copy your key and paste it when prompted
@@ -49,9 +49,17 @@ The app needs Accessibility and Input Monitoring permissions to capture hotkeys 
 12. Press **Cmd+Shift+G** again, paste the same Python path, press Enter
 13. Click **Open**
 14. Make sure the toggle is **ON**
-15. **Restart Terminal** (or quit and relaunch the app) for changes to take effect
 
-> **Tip:** If you also run the app from Terminal, you may need to add Terminal.app to both lists too. The same steps apply — just select Terminal from Applications instead of pasting a path.
+**Terminal (required if you launch from Terminal):**
+
+15. Go back to **Privacy & Security** → **Accessibility**
+16. Click the **+** button
+17. Navigate to **Applications → Utilities → Terminal** and click Open
+18. Make sure the toggle is **ON**
+19. Repeat for **Input Monitoring**: Privacy & Security → Input Monitoring → **+** → Applications → Utilities → Terminal → Open → toggle **ON**
+20. **Quit Terminal completely** (Cmd+Q) and reopen it for changes to take effect
+
+> **Important:** If you skip the Terminal steps, the hotkeys will not work. macOS requires both the Python binary AND the app you launch it from to have permissions.
 
 ## How It Works
 
