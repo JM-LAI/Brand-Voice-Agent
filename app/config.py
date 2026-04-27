@@ -24,6 +24,7 @@ DEFAULT_MODEL = "lightning-ai/gemma-4-31B-it"
 # display name -> model ID, ordered by speed
 MODELS = {
     "Gemma 4 31B": "lightning-ai/gemma-4-31B-it",
+    "DeepSeek V4 Pro": "lightning-ai/deepseek-v4-pro",
     "DeepSeek V3.1": "lightning-ai/DeepSeek-V3.1",
     "Llama 3.3 70B": "lightning-ai/llama-3.3-70b",
     "Nemotron 3 Super": "lightning-ai/nvidia-nemotron-3-super-120b-a12b",

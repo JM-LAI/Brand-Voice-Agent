@@ -20,6 +20,14 @@ That's it. The installer handles Homebrew, Python, dependencies, and everything 
 
 Already installed? Run `./install.sh` again — it's idempotent.
 
+### Update
+
+Pull the latest and restart:
+
+```bash
+cd ~/Brand-Voice-Agent && git pull && ./brandvoice.sh
+```
+
 ### What You'll Need
 
 - **macOS** (any recent version)
