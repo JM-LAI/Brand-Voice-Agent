@@ -432,10 +432,12 @@ def run_onboarding() -> bool:
     log(f"Detected terminal: {terminal_app}")
 
     # step 5: Accessibility — Python binary
-    pyperclip.copy(real_python)
     subprocess.Popen([
         "open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     ])
+    time.sleep(0.5)
+    pyperclip.copy(real_python)
+    _bring_to_front()
     rumps.alert(
         title="Step 1 of 4 — Accessibility (Python)",
         message=(
@@ -449,6 +451,7 @@ def run_onboarding() -> bool:
     )
 
     # step 6: Accessibility — Terminal app
+    _bring_to_front()
     rumps.alert(
         title=f"Step 2 of 4 — Accessibility ({terminal_app})",
         message=(
@@ -462,10 +465,12 @@ def run_onboarding() -> bool:
     )
 
     # step 7: Input Monitoring — Python binary
-    pyperclip.copy(real_python)
     subprocess.Popen([
         "open", "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
     ])
+    time.sleep(0.5)
+    pyperclip.copy(real_python)
+    _bring_to_front()
     rumps.alert(
         title="Step 3 of 4 — Input Monitoring (Python)",
         message=(
@@ -478,6 +483,7 @@ def run_onboarding() -> bool:
     )
 
     # step 8: Input Monitoring — Terminal app
+    _bring_to_front()
     rumps.alert(
         title=f"Step 4 of 4 — Input Monitoring ({terminal_app})",
         message=(
