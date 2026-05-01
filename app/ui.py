@@ -313,6 +313,22 @@ def _bring_to_front():
         pass
 
 
+def _copy_to_clipboard(text: str):
+    """Copy text to clipboard with fallback to pbcopy if pyperclip fails."""
+    try:
+        pyperclip.copy(text)
+        if pyperclip.paste() == text:
+            return
+    except Exception:
+        pass
+    # fallback: use pbcopy directly
+    try:
+        proc = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+        proc.communicate(text.encode("utf-8"))
+    except Exception:
+        pass
+
+
 def run_onboarding() -> bool:
     """
     Walk the user through initial setup.
@@ -431,12 +447,18 @@ def run_onboarding() -> bool:
         pass
     log(f"Detected terminal: {terminal_app}")
 
+    # print to terminal as a fallback in case clipboard fails
+    print(f"\n{'='*60}")
+    print(f"  PYTHON PATH FOR PERMISSIONS (copy this if needed):")
+    print(f"  {real_python}")
+    print(f"{'='*60}\n")
+
     # step 5: Accessibility — Python binary
     subprocess.Popen([
         "open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     ])
     time.sleep(0.5)
-    pyperclip.copy(real_python)
+    _copy_to_clipboard(real_python)
     _bring_to_front()
     rumps.alert(
         title="Step 1 of 4 — Accessibility (Python)",
@@ -444,6 +466,8 @@ def run_onboarding() -> bool:
             "I've opened the Accessibility settings and copied "
             "the Python path to your clipboard.\n\n"
             f"Path: {real_python}\n\n"
+            "If clipboard didn't work, check your terminal — "
+            "the path is printed there too.\n\n"
             "Click the + button, then:\n\n"
             f"{go_to_tip}\n\n"
             "Flip the switch ON, then click OK here."
@@ -469,13 +493,15 @@ def run_onboarding() -> bool:
         "open", "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
     ])
     time.sleep(0.5)
-    pyperclip.copy(real_python)
+    _copy_to_clipboard(real_python)
     _bring_to_front()
     rumps.alert(
         title="Step 3 of 4 — Input Monitoring (Python)",
         message=(
             "Now I've opened Input Monitoring and copied the Python path again.\n\n"
             f"Path: {real_python}\n\n"
+            "If clipboard didn't work, check your terminal — "
+            "the path is printed there too.\n\n"
             "Same as before — click +, then:\n\n"
             f"{go_to_tip}\n\n"
             "Flip the switch ON, then click OK here."

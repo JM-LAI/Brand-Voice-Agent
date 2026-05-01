@@ -149,6 +149,16 @@ if [[ "$yn" =~ ^[Yy] ]]; then
     info "The app will walk you through permissions on first launch."
 fi
 
+# print the python path they'll need for permissions
+VENV_PYTHON="$(cd "$INSTALL_DIR" && .venv/bin/python -c "import sys,os; print(os.path.realpath(sys.executable))")"
+printf "${YELLOW}  ⚠ IMPORTANT — You'll need this path for macOS permissions:${RESET}\n\n"
+printf "${WHITE}    ${VENV_PYTHON}${RESET}\n\n"
+printf "${GREY}  The app will try to copy it to your clipboard during setup,${RESET}\n"
+printf "${GREY}  but if that fails, copy it from here.${RESET}\n"
+printf "${GREY}  Add this path to: System Settings → Privacy & Security →${RESET}\n"
+printf "${GREY}    • Accessibility${RESET}\n"
+printf "${GREY}    • Input Monitoring${RESET}\n\n"
+
 printf "\n${GREY}  Quick reference:${RESET}\n"
 printf "${GREY}    Cmd+Ctrl+G    Rewrite selected text${RESET}\n"
 printf "${GREY}    Cmd+Ctrl+M    Cycle modes${RESET}\n"
