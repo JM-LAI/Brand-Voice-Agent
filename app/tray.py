@@ -97,19 +97,24 @@ class BrandVoiceApp(rumps.App):
         log("Brand Voice app started")
 
     def _check_permissions(self, _):
-        """One-shot check for Accessibility/Input Monitoring permissions."""
+        """One-shot check — if permissions missing, prompt user to fix them."""
         self._perms_timer.stop()
         try:
             from ApplicationServices import AXIsProcessTrusted
             if not AXIsProcessTrusted():
-                import sys, os
-                real_python = os.path.realpath(sys.executable)
-                rumps.notification(
+                log("Accessibility permission not granted — prompting user")
+                result = rumps.alert(
                     title="Brand Voice — Permissions Needed",
-                    subtitle="Hotkeys won't work without permissions",
-                    message="Go to System Settings → Privacy & Security → Accessibility and Input Monitoring. Add: " + real_python,
+                    message=(
+                        "Hotkeys won't work until you grant Accessibility "
+                        "and Input Monitoring permissions.\n\n"
+                        "Want me to walk you through it now?"
+                    ),
+                    ok="Fix Now",
+                    cancel="Later",
                 )
-                log("Accessibility permission not granted — user notified")
+                if result == 1:
+                    self._fix_permissions(None)
         except Exception as e:
             log(f"Permission check failed: {e}")
 
