@@ -203,6 +203,7 @@ class BrandVoiceApp(rumps.App):
             rumps.MenuItem("Set Undo Hotkey...", callback=self._set_undo_hotkey),
             None,
             rumps.MenuItem("Auto-start at Login", callback=self._toggle_autostart),
+            rumps.MenuItem("Fix Permissions...", callback=self._fix_permissions),
             rumps.MenuItem("Test Connection", callback=self._test_connection),
             rumps.MenuItem("Open Logs", callback=self._open_logs),
         ]}
@@ -677,6 +678,53 @@ class BrandVoiceApp(rumps.App):
                 _run_on_main_thread(notify_error, msg)
 
         threading.Thread(target=_test, daemon=True).start()
+
+    def _fix_permissions(self, _):
+        """Re-run the permissions setup steps — copies Python path and opens System Settings."""
+        import sys
+        real_python = os.path.realpath(sys.executable)
+        from app.ui import _copy_to_clipboard, _bring_to_front
+
+        print(f"\n{'='*60}")
+        print(f"  PYTHON PATH FOR PERMISSIONS (copy this if needed):")
+        print(f"  {real_python}")
+        print(f"{'='*60}\n")
+
+        subprocess.Popen([
+            "open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        ])
+        time.sleep(0.5)
+        _copy_to_clipboard(real_python)
+        _bring_to_front()
+        rumps.alert(
+            title="Fix Permissions — Accessibility",
+            message=(
+                f"I've opened Accessibility settings and copied the Python path.\n\n"
+                f"Path: {real_python}\n\n"
+                "If it's not on your clipboard, check your terminal.\n\n"
+                "Click +, press Cmd+Shift+G, paste with Cmd+V, press Enter, click Open.\n"
+                "Toggle ON. Then also add your terminal app (e.g. Terminal, iTerm2).\n\n"
+                "Click OK when done."
+            ),
+        )
+
+        subprocess.Popen([
+            "open", "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        ])
+        time.sleep(0.5)
+        _copy_to_clipboard(real_python)
+        _bring_to_front()
+        rumps.alert(
+            title="Fix Permissions — Input Monitoring",
+            message=(
+                f"Now do the same in Input Monitoring.\n\n"
+                f"Path: {real_python}\n\n"
+                "Click +, press Cmd+Shift+G, paste with Cmd+V, press Enter, click Open.\n"
+                "Toggle ON. Also add your terminal app.\n\n"
+                "Then QUIT your terminal (Cmd+Q) and reopen it for changes to take effect."
+            ),
+        )
+        log("Fix Permissions completed")
 
     def _open_logs(self, _):
         from app.config import LOG_PATH
